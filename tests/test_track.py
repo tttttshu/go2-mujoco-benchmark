@@ -132,6 +132,12 @@ def test_maze_difficulty_controls_geometry_and_exit_is_exactly_1_2m():
     easy_maze = easy.patches[1]
     hard_maze = hard.patches[1]
 
+    assert easy_maze.parameters["wall_thickness"] == pytest.approx(0.04)
+    assert hard_maze.parameters["wall_thickness"] == pytest.approx(0.08)
+    assert easy_maze.parameters["wall_length"] == pytest.approx(0.30)
+    assert hard_maze.parameters["wall_length"] == pytest.approx(0.55)
+    assert easy_maze.parameters["wall_count"] == 4
+    assert hard_maze.parameters["wall_count"] == 10
     assert hard_maze.parameters["wall_thickness"] > easy_maze.parameters["wall_thickness"]
     assert hard_maze.parameters["wall_length"] > easy_maze.parameters["wall_length"]
     assert hard_maze.parameters["corridor_width"] < easy_maze.parameters["corridor_width"]

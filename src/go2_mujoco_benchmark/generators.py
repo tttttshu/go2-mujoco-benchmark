@@ -157,15 +157,15 @@ def build_maze(
 
     assert segment.length is not None
     difficulty_level, difficulty = _difficulty(segment, global_difficulty_level)
-    wall_thickness = segment.wall_thickness or (0.06 + 0.12 * difficulty)
-    default_wall_length = 0.45 + 0.35 * difficulty
+    wall_thickness = segment.wall_thickness or (0.04 + 0.04 * difficulty)
+    default_wall_length = 0.30 + 0.25 * difficulty
     if segment.wall_length is not None:
         wall_length = segment.wall_length
     elif segment.corridor_width is not None:
         wall_length = width - 2.0 * segment.corridor_width
     else:
         wall_length = default_wall_length
-    wall_count = segment.wall_count or (6 + round(12 * difficulty))
+    wall_count = segment.wall_count or (4 + round(6 * difficulty))
 
     if width <= MAZE_EXIT_WIDTH:
         raise ValueError(f"Maze track width must exceed the fixed {MAZE_EXIT_WIDTH:.1f} m exit width")

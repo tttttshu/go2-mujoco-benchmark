@@ -62,18 +62,18 @@ Without explicit values, levels 1–9 control all three maze dimensions:
 
 | Parameter | Level 1 | Level 9 | Effect |
 | --- | ---: | ---: | --- |
-| `wall_thickness` | 0.06 m | 0.18 m | thicker is harder |
-| `wall_length` | 0.45 m | 0.80 m | longer is harder, but remains free-standing |
-| `wall_count` | 6 | 18 | more walls is harder |
+| `wall_thickness` | 0.04 m | 0.08 m | thicker is harder |
+| `wall_length` | 0.30 m | 0.55 m | longer is harder, but remains free-standing |
+| `wall_count` | 4 | 10 | more walls is harder |
 
 Each dimension may instead be fixed explicitly for controlled experiments:
 
 ```yaml
 - type: maze
   length: 5.0
-  wall_thickness: 0.12
-  wall_length: 0.65
-  wall_count: 12
+  wall_thickness: 0.06
+  wall_length: 0.45
+  wall_count: 8
 ```
 
 `wall_length` must be smaller than the track `width`, and the segment must be
