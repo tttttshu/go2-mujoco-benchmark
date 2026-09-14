@@ -112,6 +112,73 @@ def test_boundary_walls_follow_both_track_edges():
         assert wall.half_size[2] == pytest.approx(0.225)
 
 
+def test_maze_difficulty_controls_geometry_and_exit_is_exactly_1_2m():
+    def compile_level(level: int):
+        return TrackComposer().compile(
+            TrackSpec.from_mapping(
+                {
+                    "schema_version": 2,
+                    "name": f"maze_{level}",
+                    "width": 3.0,
+                    "difficulty_level": level,
+                    "boundary_walls": {"enabled": True},
+                    "segments": [{"type": "maze", "length": 7.0}],
+                }
+            )
+        )
+
+    easy = compile_level(1)
+    hard = compile_level(9)
+    easy_maze = easy.patches[1]
+    hard_maze = hard.patches[1]
+
+    assert hard_maze.parameters["wall_thickness"] > easy_maze.parameters["wall_thickness"]
+    assert hard_maze.parameters["corridor_width"] < easy_maze.parameters["corridor_width"]
+    assert hard_maze.parameters["wall_count"] > easy_maze.parameters["wall_count"]
+    assert hard_maze.parameters["exit_width"] == pytest.approx(1.2)
+    exit_walls = [geom for geom in hard_maze.obstacle_geoms if "maze_exit" in geom.name]
+    assert len(exit_walls) == 2
+    inner_edges = sorted(
+        geom.center[1] - geom.half_size[1] if geom.center[1] > 0 else geom.center[1] + geom.half_size[1]
+        for geom in exit_walls
+    )
+    assert inner_edges == pytest.approx([-0.6, 0.6])
+    assert all(not geom.name.startswith("boundary_001") for geom in hard.boundary_geoms)
+
+
+def test_maze_overrides_and_arbitrary_segment_order_are_preserved():
+    spec = TrackSpec.from_mapping(
+        {
+            "schema_version": 2,
+            "name": "custom_maze",
+            "width": 3.2,
+            "difficulty_level": 4,
+            "segments": [
+                {"type": "maze", "length": 5.0, "wall_thickness": 0.11, "corridor_width": 1.4, "wall_count": 3},
+                {"type": "flat", "length": 1.0},
+                {"type": "maze", "length": 6.0, "difficulty_level": 8},
+            ],
+        }
+    )
+    track = TrackComposer().compile(spec)
+
+    assert [patch.kind for patch in track.patches] == ["flat", "maze", "flat", "maze", "flat"]
+    assert track.patches[1].parameters["wall_thickness"] == pytest.approx(0.11)
+    assert track.patches[1].parameters["corridor_width"] == pytest.approx(1.4)
+    assert track.patches[1].parameters["wall_count"] == 3
+    assert track.patches[3].difficulty_level == 8
+    for left, right in zip(track.patches, track.patches[1:]):
+        assert (left.end_x, left.end_z) == pytest.approx((right.start_x, right.start_z))
+
+
+def test_v1_normalized_difficulty_is_backward_compatible():
+    spec = TrackSpec.from_mapping(
+        {"schema_version": 1, "name": "legacy", "global_difficulty": 0.5, "segments": [{"type": "flat", "length": 1.0}]}
+    )
+    assert spec.difficulty_level == 5
+    assert spec.global_difficulty == pytest.approx(0.5)
+
+
 @pytest.mark.parametrize(
     "payload, message",
     [
@@ -119,6 +186,32 @@ def test_boundary_walls_follow_both_track_edges():
         ({"name": "bad", "segments": [{"type": "slope_up"}]}, "length"),
         ({"name": "bad", "segments": [{"type": "stairs_up", "steps": 0}]}, "positive integer"),
         ({"name": "bad", "segments": [{"type": "flat", "length": 1.0, "slope": 0.2}]}, "slope"),
+        (
+            {
+                "schema_version": 2,
+                "name": "bad",
+                "difficulty_level": 10,
+                "segments": [{"type": "flat", "length": 1.0}],
+            },
+            r"\[1, 9\]",
+        ),
+        (
+            {
+                "schema_version": 2,
+                "name": "bad",
+                "difficulty_level": 2.5,
+                "segments": [{"type": "flat", "length": 1.0}],
+            },
+            "integer",
+        ),
+        (
+            {
+                "schema_version": 2,
+                "name": "bad",
+                "segments": [{"type": "maze", "length": 2.0, "wall_count": 0}],
+            },
+            "positive integer",
+        ),
     ],
 )
 def test_invalid_track_specs_are_rejected(payload, message):

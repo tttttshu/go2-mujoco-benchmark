@@ -19,7 +19,7 @@ def test_release_archives_are_self_contained_and_exclude_policy_by_default(tmp_p
         names = archive.namelist()
         manifest_name = next(name for name in names if name.endswith("/RELEASE-MANIFEST.json"))
         manifest = json.loads(archive.read(manifest_name))
-        assert manifest["version"] == "0.1.0"
+        assert manifest["version"] == "0.2.0"
         assert manifest["policy_included"] is False
         assert any(name.endswith("/third_party/unitree_go2/scene.xml") for name in names)
         assert not any(name.endswith("/policy.onnx") for name in names)

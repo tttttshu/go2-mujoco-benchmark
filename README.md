@@ -31,7 +31,7 @@ Before launching, put `policy.onnx` and `deploy.json` in
 ## Current milestone
 
 The repository currently includes the versioned `TrackSpec`, deterministic
-flat/slope/stair composition, physical boundary walls, native `MjSpec` scene
+flat/slope/stair/maze composition, 1–9 difficulty levels, physical boundary walls, native `MjSpec` scene
 assembly, a self-contained ONNX/PD runtime, headless metrics, and native or
 browser-based real-time viewers. The same pinned dependencies and Go2 model are
 accepted on Windows and Ubuntu.
@@ -40,7 +40,7 @@ Preview a track manifest without launching a simulator:
 
 ```bash
 PYTHONPATH=src python -m go2_mujoco_benchmark.cli \
-  --track configs/tracks/mixed.yaml \
+  --track configs/tracks/mixed_maze.yaml --difficulty-level 7 \
   --output outputs/mixed_manifest.json
 ```
 
@@ -78,7 +78,7 @@ Start the real-time browser viewer locally:
 
 ```bash
 python -m go2_mujoco_benchmark.viewer \
-  --track configs/tracks/flat_20m.yaml \
+  --track configs/tracks/mixed_maze.yaml --difficulty-level 5 \
   --backend mjviser --host 127.0.0.1 --port 8080 \
   --vx 1.0 --vy 0 --wz 0 \
   --camera-distance 1.25 --camera-fov 38
@@ -106,6 +106,14 @@ Track YAML files can add physical side walls with `boundary_walls.enabled`,
 `height`, and `thickness`. The flat 20 m validation course enables 0.45 m walls.
 `configs/tracks/mixed_easy.yaml` is the first visual acceptance course: it uses
 a wide lane and low training-range slopes and stairs before harder sweeps.
+
+`segments` in a track YAML are compiled in the exact listed order, so terrain
+types can be selected, repeated, and rearranged freely. `difficulty_level` is
+an integer from 1 (easiest) to 9 (hardest), globally or on an individual
+segment. Maze difficulty increases wall thickness and wall count while reducing
+the alternating corridor width. Its final barrier always leaves exactly one
+centered 1.2 m exit. See [docs/TRACK_FORMAT.md](docs/TRACK_FORMAT.md) and
+`configs/tracks/mixed_maze.yaml` for a complete example.
 
 The `native` backend opens a GLFW window and can be wrapped by termview. The
 remote machine must have Rust/cargo and Xvfb before termview's private-display

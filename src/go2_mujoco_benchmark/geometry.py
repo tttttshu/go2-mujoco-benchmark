@@ -23,9 +23,11 @@ class TerrainPatch:
     start_z: float
     end_z: float
     difficulty: float
+    difficulty_level: int
     out_of_distribution: bool
     parameters: dict[str, float | int | str]
     geoms: tuple[BoxGeom, ...]
+    obstacle_geoms: tuple[BoxGeom, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,7 @@ class CompiledTrack:
     name: str
     seed: int
     width: float
+    difficulty_level: int
     total_length: float
     start_z: float
     end_z: float

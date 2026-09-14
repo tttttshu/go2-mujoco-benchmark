@@ -1,8 +1,8 @@
-schema_version: 1
+schema_version: 2
 name: mixed_train_course
 seed: 42
 width: 2.0
-global_difficulty: 0.6
+difficulty_level: 6
 difficulty_profile: train
 start_flat_length: 2.0
 finish_flat_length: 2.0

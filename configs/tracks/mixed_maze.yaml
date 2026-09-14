@@ -1,34 +1,35 @@
 schema_version: 2
-name: mixed_easy_course
+name: mixed_maze_course
 seed: 42
 width: 3.0
-difficulty_level: 3
+difficulty_level: 5
 difficulty_profile: train
 start_flat_length: 3.0
 finish_flat_length: 3.0
 boundary_walls:
   enabled: true
-  height: 0.45
+  height: 0.55
   thickness: 0.08
 
+# Segments are compiled exactly in this order. Any terrain type can be repeated.
 segments:
   - type: flat
-    length: 2.0
+    length: 1.5
   - type: slope_up
     length: 2.0
-  - type: flat
-    length: 1.0
   - type: slope_down
     length: 2.0
+  - type: maze
+    length: 7.0
   - type: flat
     length: 1.0
   - type: stairs_up
     steps: 3
     step_depth: 0.4
-  - type: flat
-    length: 1.2
+    difficulty_level: 3
   - type: stairs_down
     steps: 3
     step_depth: 0.4
+    difficulty_level: 3
   - type: flat
-    length: 2.0
+    length: 1.5

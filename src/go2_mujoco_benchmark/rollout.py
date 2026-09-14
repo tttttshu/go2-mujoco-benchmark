@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import platform
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -154,6 +155,12 @@ def run_policy_rollout(
         "status": "POLICY_INTERFACE_OK" if all(checks.values()) else "POLICY_INTERFACE_FAILED",
         "checks": checks,
         "route": config.route,
+        "track": {
+            "name": track.name,
+            "difficulty_level": track.difficulty_level,
+            "total_length": track.total_length,
+            "width": track.width,
+        },
         "history_steps": config.history_steps,
         "observation_width": config.frame_dim * config.history_steps,
         "action_width": config.policy_output_dim,
@@ -183,6 +190,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--policy-dir", type=Path, default=default_policy_dir())
     parser.add_argument("--robot-scene", type=Path, default=default_robot_scene())
     parser.add_argument("--track", type=Path, default=default_track())
+    parser.add_argument("--difficulty-level", type=int, choices=range(1, 10), default=None)
     parser.add_argument("--output", type=Path, default=default_output())
     parser.add_argument("--vx", type=float, default=0.0)
     parser.add_argument("--vy", type=float, default=0.0)
@@ -195,10 +203,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     policy_dir = args.policy_dir.resolve()
+    track_spec = TrackSpec.load(args.track)
+    if args.difficulty_level is not None:
+        track_spec = replace(track_spec, difficulty_level=args.difficulty_level, schema_version=2)
     report = run_policy_rollout(
         policy_dir,
         args.robot_scene,
-        TrackSpec.load(args.track),
+        track_spec,
         command=(args.vx, args.vy, args.wz),
         policy_steps=args.steps,
     )

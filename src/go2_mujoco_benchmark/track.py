@@ -9,7 +9,7 @@ from typing import Any, Mapping
 
 import yaml
 
-TERRAIN_TYPES = frozenset({"flat", "slope_up", "slope_down", "stairs_up", "stairs_down"})
+TERRAIN_TYPES = frozenset({"flat", "slope_up", "slope_down", "stairs_up", "stairs_down", "maze"})
 DIFFICULTY_PROFILES = frozenset({"train", "stress"})
 
 
@@ -37,6 +37,22 @@ def _difficulty(value: Any, field: str) -> float:
     if not 0.0 <= result <= 1.0:
         raise ValueError(f"{field} must lie in [0, 1]")
     return result
+
+
+def _difficulty_level(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an integer from 1 to 9")
+    if not 1 <= value <= 9:
+        raise ValueError(f"{field} must lie in [1, 9]")
+    return value
+
+
+def difficulty_to_normalized(level: int) -> float:
+    return (_difficulty_level(level, "difficulty_level") - 1) / 8.0
+
+
+def _legacy_difficulty_to_level(value: Any, field: str) -> int:
+    return int(round(_difficulty(value, field) * 8.0)) + 1
 
 
 @dataclass(frozen=True)
@@ -70,14 +86,29 @@ class SegmentSpec:
     kind: str
     length: float | None = None
     steps: int | None = None
-    difficulty: float | None = None
+    difficulty_level: int | None = None
     slope: float | None = None
     step_height: float | None = None
     step_depth: float = 0.3
+    wall_thickness: float | None = None
+    corridor_width: float | None = None
+    wall_count: int | None = None
 
     @classmethod
-    def from_mapping(cls, payload: Mapping[str, Any]) -> SegmentSpec:
-        allowed = {"type", "length", "steps", "difficulty", "slope", "step_height", "step_depth"}
+    def from_mapping(cls, payload: Mapping[str, Any], *, schema_version: int = 2) -> SegmentSpec:
+        allowed = {
+            "type",
+            "length",
+            "steps",
+            "difficulty",
+            "difficulty_level",
+            "slope",
+            "step_height",
+            "step_depth",
+            "wall_thickness",
+            "corridor_width",
+            "wall_count",
+        }
         unknown = set(payload) - allowed
         if unknown:
             raise ValueError(f"Unknown segment fields: {sorted(unknown)}")
@@ -86,19 +117,46 @@ class SegmentSpec:
             raise ValueError(f"Unsupported terrain type: {kind!r}")
 
         length = _positive_float(payload["length"], "segment.length") if "length" in payload else None
-        difficulty = _difficulty(payload["difficulty"], "segment.difficulty") if "difficulty" in payload else None
+        if "difficulty" in payload and "difficulty_level" in payload:
+            raise ValueError("Use only one of segment.difficulty or segment.difficulty_level")
+        if schema_version == 1 and "difficulty_level" in payload:
+            raise ValueError("TrackSpec v1 uses segment.difficulty from 0 to 1")
+        if schema_version == 2 and "difficulty" in payload:
+            raise ValueError("TrackSpec v2 uses segment.difficulty_level from 1 to 9")
+        if "difficulty_level" in payload:
+            difficulty_level = _difficulty_level(payload["difficulty_level"], "segment.difficulty_level")
+        elif "difficulty" in payload:
+            difficulty_level = _legacy_difficulty_to_level(payload["difficulty"], "segment.difficulty")
+        else:
+            difficulty_level = None
         slope = _finite_float(payload["slope"], "segment.slope") if "slope" in payload else None
         step_height = (
             _positive_float(payload["step_height"], "segment.step_height") if "step_height" in payload else None
         )
         step_depth = _positive_float(payload.get("step_depth", 0.3), "segment.step_depth")
+        wall_thickness = (
+            _positive_float(payload["wall_thickness"], "segment.wall_thickness")
+            if "wall_thickness" in payload
+            else None
+        )
+        corridor_width = (
+            _positive_float(payload["corridor_width"], "segment.corridor_width")
+            if "corridor_width" in payload
+            else None
+        )
 
         raw_steps = payload.get("steps")
         if raw_steps is not None and (isinstance(raw_steps, bool) or not isinstance(raw_steps, int) or raw_steps < 1):
             raise ValueError("segment.steps must be a positive integer")
         steps = raw_steps
+        raw_wall_count = payload.get("wall_count")
+        if raw_wall_count is not None and (
+            isinstance(raw_wall_count, bool) or not isinstance(raw_wall_count, int) or raw_wall_count < 1
+        ):
+            raise ValueError("segment.wall_count must be a positive integer")
+        wall_count = raw_wall_count
 
-        if kind in {"flat", "slope_up", "slope_down"} and length is None:
+        if kind in {"flat", "slope_up", "slope_down", "maze"} and length is None:
             raise ValueError(f"{kind} requires segment.length")
         if kind in {"stairs_up", "stairs_down"} and steps is None:
             raise ValueError(f"{kind} requires segment.steps")
@@ -108,15 +166,20 @@ class SegmentSpec:
             raise ValueError("segment.slope must be non-negative")
         if (step_height is not None or "step_depth" in payload) and kind not in {"stairs_up", "stairs_down"}:
             raise ValueError("step_height and step_depth are valid only for stair terrain")
+        if any(value is not None for value in (wall_thickness, corridor_width, wall_count)) and kind != "maze":
+            raise ValueError("wall_thickness, corridor_width and wall_count are valid only for maze terrain")
 
         return cls(
             kind=kind,
             length=length,
             steps=steps,
-            difficulty=difficulty,
+            difficulty_level=difficulty_level,
             slope=slope,
             step_height=step_height,
             step_depth=step_depth,
+            wall_thickness=wall_thickness,
+            corridor_width=corridor_width,
+            wall_count=wall_count,
         )
 
 
@@ -125,13 +188,18 @@ class TrackSpec:
     name: str
     seed: int
     width: float
-    global_difficulty: float
+    difficulty_level: int
     difficulty_profile: str
     start_flat_length: float
     finish_flat_length: float
     segments: tuple[SegmentSpec, ...]
     boundary_walls: BoundaryWallSpec = BoundaryWallSpec()
-    schema_version: int = 1
+    schema_version: int = 2
+
+    @property
+    def global_difficulty(self) -> float:
+        """Normalized difficulty retained for terrain generator compatibility."""
+        return difficulty_to_normalized(self.difficulty_level)
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any]) -> TrackSpec:
@@ -141,6 +209,7 @@ class TrackSpec:
             "seed",
             "width",
             "global_difficulty",
+            "difficulty_level",
             "difficulty_profile",
             "start_flat_length",
             "finish_flat_length",
@@ -151,7 +220,7 @@ class TrackSpec:
         if unknown:
             raise ValueError(f"Unknown track fields: {sorted(unknown)}")
         schema_version = payload.get("schema_version", 1)
-        if schema_version != 1:
+        if isinstance(schema_version, bool) or schema_version not in (1, 2):
             raise ValueError(f"Unsupported TrackSpec schema: {schema_version!r}")
         name = str(payload.get("name", "")).strip()
         if not name:
@@ -167,15 +236,30 @@ class TrackSpec:
             raise ValueError("Track segments must be a non-empty list")
         if not all(isinstance(item, Mapping) for item in segment_payloads):
             raise ValueError("Every track segment must be a mapping")
+        if "global_difficulty" in payload and "difficulty_level" in payload:
+            raise ValueError("Use only one of global_difficulty or difficulty_level")
+        if schema_version == 1 and "difficulty_level" in payload:
+            raise ValueError("TrackSpec v1 uses global_difficulty from 0 to 1")
+        if schema_version == 2 and "global_difficulty" in payload:
+            raise ValueError("TrackSpec v2 uses difficulty_level from 1 to 9")
+        if "difficulty_level" in payload:
+            difficulty_level = _difficulty_level(payload["difficulty_level"], "track.difficulty_level")
+        elif schema_version == 1:
+            difficulty_level = _legacy_difficulty_to_level(
+                payload.get("global_difficulty", 0.0),
+                "track.global_difficulty",
+            )
+        else:
+            difficulty_level = 1
         return cls(
             name=name,
             seed=seed,
             width=_positive_float(payload.get("width", 2.0), "track.width"),
-            global_difficulty=_difficulty(payload.get("global_difficulty", 0.0), "track.global_difficulty"),
+            difficulty_level=difficulty_level,
             difficulty_profile=profile,
             start_flat_length=_positive_float(payload.get("start_flat_length", 2.0), "start_flat_length"),
             finish_flat_length=_positive_float(payload.get("finish_flat_length", 2.0), "finish_flat_length"),
-            segments=tuple(SegmentSpec.from_mapping(item) for item in segment_payloads),
+            segments=tuple(SegmentSpec.from_mapping(item, schema_version=schema_version) for item in segment_payloads),
             boundary_walls=BoundaryWallSpec.from_mapping(payload.get("boundary_walls")),
             schema_version=schema_version,
         )

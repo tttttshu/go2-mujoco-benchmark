@@ -27,9 +27,10 @@ class TrackComposer:
                 start_x=cursor_x,
                 start_z=cursor_z,
                 width=spec.width,
-                global_difficulty=spec.global_difficulty,
+                global_difficulty_level=spec.difficulty_level,
                 profile=spec.difficulty_profile,
                 limits=self.limits,
+                seed=spec.seed,
             )
             if abs(patch.start_x - cursor_x) > 1.0e-9 or abs(patch.start_z - cursor_z) > 1.0e-9:
                 raise RuntimeError(f"Terrain generator broke the chaining contract at patch {index}")
@@ -40,6 +41,8 @@ class TrackComposer:
         if spec.boundary_walls.enabled:
             wall = spec.boundary_walls
             for patch in patches:
+                if patch.kind == "maze":
+                    continue
                 for geom_index, geom in enumerate(patch.geoms):
                     w, x, y, z = geom.quaternion_wxyz
                     local_up = (
@@ -65,6 +68,7 @@ class TrackComposer:
             name=spec.name,
             seed=spec.seed,
             width=spec.width,
+            difficulty_level=spec.difficulty_level,
             total_length=cursor_x,
             start_z=0.0,
             end_z=cursor_z,

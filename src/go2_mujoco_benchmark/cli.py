@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from .composer import TrackComposer
@@ -15,12 +16,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--track", type=Path, required=True)
     parser.add_argument("--deploy-json", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--difficulty-level", type=int, choices=range(1, 10), default=None)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     spec = TrackSpec.load(args.track)
+    if args.difficulty_level is not None:
+        spec = replace(spec, difficulty_level=args.difficulty_level, schema_version=2)
     limits = TerrainLimits.from_deploy_json(args.deploy_json) if args.deploy_json else TerrainLimits()
     track = TrackComposer(limits).compile(spec)
     result = track.to_dict()

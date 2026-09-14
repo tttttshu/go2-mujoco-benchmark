@@ -6,6 +6,7 @@ import argparse
 import math
 import time
 import webbrowser
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -178,7 +179,11 @@ def _telemetry_markdown(
     velocity = np.asarray(snapshot["body_velocity"])
     position = np.asarray(snapshot["position"])
     return (
-        ("**⚠ Motion appears stalled — use Reverse briefly or Reset & align.**\n\n" if stalled else "**● Motion active**\n\n")
+        (
+            "**⚠ Motion appears stalled — use Reverse briefly or Reset & align.**\n\n"
+            if stalled
+            else "**● Motion active**\n\n"
+        )
         + "| Motion | Target | Actual |\n"
         "|:--|--:|--:|\n"
         f"| Forward | {command[0]:+.2f} m/s | {velocity[0]:+.2f} m/s |\n"
@@ -284,7 +289,10 @@ def _create_runtime(args: argparse.Namespace):
     DeploymentConfig, MujocoRuntime = _deployment_api()
     mujoco = _import_mujoco()
     config = DeploymentConfig.load(args.policy_dir / "deploy.json")
-    track = TrackComposer().compile(TrackSpec.load(args.track))
+    track_spec = TrackSpec.load(args.track)
+    if args.difficulty_level is not None:
+        track_spec = replace(track_spec, difficulty_level=args.difficulty_level, schema_version=2)
+    track = TrackComposer().compile(track_spec)
     model = compile_mujoco_track(
         args.robot_scene,
         track,
@@ -427,7 +435,8 @@ def _add_viewer_controls(
         patch_summary = " → ".join(patch.kind for patch in track.patches)
         server.gui.add_markdown(
             f"**{track.name}**  \n"
-            f"Length `{track.total_length:.1f} m` · width `{track.width:.1f} m` · "
+            f"Difficulty `{track.difficulty_level}/9` · length `{track.total_length:.1f} m` · "
+            f"width `{track.width:.1f} m` · "
             f"segments `{len(track.patches)}`  \n\n"
             f"`{patch_summary}`"
         )
@@ -565,6 +574,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--policy-dir", type=Path, default=default_policy_dir())
     parser.add_argument("--robot-scene", type=Path, default=default_robot_scene())
     parser.add_argument("--track", type=Path, default=default_track())
+    parser.add_argument("--difficulty-level", type=int, choices=range(1, 10), default=None)
     parser.add_argument("--backend", choices=("mjviser", "native"), default="mjviser")
     parser.add_argument("--vx", type=float, default=0.4)
     parser.add_argument("--vy", type=float, default=0.0)

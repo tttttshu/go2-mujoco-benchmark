@@ -17,8 +17,10 @@ TERRAIN_COLORS = {
     "slope_down": (0.34, 0.42, 0.55, 1.0),
     "stairs_up": (0.52, 0.40, 0.28, 1.0),
     "stairs_down": (0.52, 0.40, 0.28, 1.0),
+    "maze": (0.38, 0.38, 0.34, 1.0),
 }
 BOUNDARY_COLOR = (0.20, 0.24, 0.30, 1.0)
+OBSTACLE_COLOR = (0.58, 0.25, 0.18, 1.0)
 DEPTH_CAMERA_NAME = "go2_depth_camera"
 
 
@@ -142,6 +144,20 @@ def compile_mujoco_track(
                 condim=4,
                 margin=0.001,
             )
+        for geom in patch.obstacle_geoms:
+            spec.worldbody.add_geom(
+                name=geom.name,
+                type=mujoco.mjtGeom.mjGEOM_BOX,
+                pos=list(geom.center),
+                size=list(geom.half_size),
+                quat=list(geom.quaternion_wxyz),
+                rgba=list(OBSTACLE_COLOR),
+                friction=list(friction),
+                contype=1,
+                conaffinity=1,
+                condim=4,
+                margin=0.001,
+            )
 
     for geom in track.boundary_geoms:
         spec.worldbody.add_geom(
@@ -169,6 +185,16 @@ def compile_mujoco_track(
         missing = sorted(expected_names - compiled_names)
         extra = sorted(compiled_names - expected_names)
         raise RuntimeError(f"Compiled terrain mismatch: missing={missing}, extra={extra}")
+    expected_obstacle_names = {geom.name for patch in track.patches for geom in patch.obstacle_geoms}
+    compiled_obstacle_names = {
+        model.geom(index).name
+        for index in range(model.ngeom)
+        if model.geom(index).name and model.geom(index).name.startswith("obstacle_")
+    }
+    if compiled_obstacle_names != expected_obstacle_names:
+        missing = sorted(expected_obstacle_names - compiled_obstacle_names)
+        extra = sorted(compiled_obstacle_names - expected_obstacle_names)
+        raise RuntimeError(f"Compiled obstacle mismatch: missing={missing}, extra={extra}")
     expected_boundary_names = {geom.name for geom in track.boundary_geoms}
     compiled_boundary_names = {
         model.geom(index).name

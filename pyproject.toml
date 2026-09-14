@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "go2-mujoco-benchmark"
-version = "0.1.0"
+version = "0.2.0"
 description = "Composable MuJoCo terrain benchmark for exported Unitree Go2 locomotion policies"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
