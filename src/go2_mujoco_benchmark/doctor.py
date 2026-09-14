@@ -59,6 +59,11 @@ def run_doctor(
     )
     runtime = MujocoRuntime.from_model(policy_dir, model, mujoco_module=mujoco)
     runtime.set_command((0.0, 0.0, 0.0))
+    start_patch = track.patches[0]
+    runtime.place_base_above_surface(
+        (start_patch.start_x + min(0.75, (start_patch.end_x - start_patch.start_x) / 2.0), 0.0),
+        surface_z=start_patch.start_z,
+    )
     runtime.step_control()
     print(
         f"DOCTOR_OK scope=full policy_route={config.route} "

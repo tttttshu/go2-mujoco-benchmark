@@ -5,7 +5,16 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from go2_mujoco_benchmark.viewer import _BrowserCameraTracker, _camera_offset, _outside_track
+from go2_mujoco_benchmark.viewer import (
+    _BrowserCameraTracker,
+    _StallDetector,
+    _camera_offset,
+    _colorize_depth,
+    _outside_track,
+    _outside_track_reason,
+    _telemetry_markdown,
+    _telemetry_snapshot,
+)
 
 
 class _FakeCamera:
@@ -85,3 +94,59 @@ def test_outside_track_detects_lateral_exit_and_fall() -> None:
     assert _outside_track(np.asarray([1.0, 1.8, 0.35]), track)
     assert _outside_track(np.asarray([1.0, 0.0, -0.6]), track)
     assert _outside_track(np.asarray([np.nan, 0.0, 0.35]), track)
+    assert _outside_track_reason(np.asarray([1.0, 1.8, 0.35]), track) == "left course side"
+    assert _outside_track_reason(np.asarray([20.3, 0.0, 0.35]), track) == "reached course end"
+
+
+def test_telemetry_reports_track_progress_and_motion() -> None:
+    patch_a = SimpleNamespace(start_x=0.0, end_x=2.0, start_z=0.0, end_z=0.0, kind="flat")
+    patch_b = SimpleNamespace(start_x=2.0, end_x=4.0, start_z=0.0, end_z=0.2, kind="slope_up")
+    track = SimpleNamespace(
+        start_z=0.0,
+        end_z=0.2,
+        total_length=4.0,
+        width=3.0,
+        patches=(patch_a, patch_b),
+    )
+    runtime = SimpleNamespace(
+        data=SimpleNamespace(
+            qpos=np.asarray([3.0, 0.1, 0.4, 1.0, 0.0, 0.0, 0.0]),
+            qvel=np.asarray([0.8, 0.0, 0.0, 0.0, 0.0, 0.2]),
+            time=2.5,
+        ),
+        get_command=lambda: np.asarray([1.0, 0.0, 0.0]),
+    )
+
+    snapshot = _telemetry_snapshot(runtime, track)
+    assert snapshot["progress"] == pytest.approx(0.75)
+    assert snapshot["patch_index"] == 1
+    assert snapshot["patch_kind"] == "slope_up"
+    np.testing.assert_allclose(snapshot["body_velocity"], [0.8, 0.0, 0.0])
+    text = _telemetry_markdown(snapshot, reset_count=1, reset_reason="manual")
+    assert "Forward" in text
+    assert "slope_up" in text
+    assert "resets `1`" in text
+
+
+def test_depth_colorization_maps_near_to_warm_and_far_to_cool() -> None:
+    image = _colorize_depth(np.asarray([[np.nan, 0.15, 2.075, 4.0]], dtype=np.float32))
+    assert image.shape == (1, 4, 3)
+    assert image.dtype == np.uint8
+    np.testing.assert_array_equal(image[0, 0], [0, 0, 0])
+    np.testing.assert_array_equal(image[0, 1], [255, 0, 0])
+    np.testing.assert_array_equal(image[0, 3], [0, 0, 255])
+
+
+def test_stall_detector_flags_commanded_motion_without_progress() -> None:
+    detector = _StallDetector(window_seconds=2.5, minimum_progress=0.08)
+    snapshot = {
+        "command": np.asarray([1.0, 0.0, 0.0]),
+        "position": np.asarray([0.75, 0.0, 0.35]),
+        "sim_time": 0.0,
+    }
+    assert not detector.update(snapshot)
+    snapshot["position"] = np.asarray([0.76, 0.0, 0.35])
+    snapshot["sim_time"] = 3.0
+    assert detector.update(snapshot)
+    snapshot["position"] = np.asarray([0.90, 0.0, 0.35])
+    assert not detector.update(snapshot)

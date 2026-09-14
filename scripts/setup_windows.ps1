@@ -30,10 +30,18 @@ $BootstrapArgs = @()
 if ($Bootstrap.Count -gt 1) {
     $BootstrapArgs = $Bootstrap[1..($Bootstrap.Count - 1)]
 }
+& $BootstrapExe @BootstrapArgs -c "import sys; raise SystemExit(0 if (3, 11) <= sys.version_info[:2] < (3, 13) and sys.maxsize > 2**32 else 1)"
+if ($LASTEXITCODE -ne 0) {
+    throw "Selected interpreter must be 64-bit Python 3.11 or 3.12: $($Bootstrap -join ' ')"
+}
 $VenvPython = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {
     & $BootstrapExe @BootstrapArgs -m venv .venv
     if ($LASTEXITCODE -ne 0) { throw "Failed to create .venv" }
+}
+& $VenvPython -c "import sys; raise SystemExit(0 if (3, 11) <= sys.version_info[:2] < (3, 13) and sys.maxsize > 2**32 else 1)"
+if ($LASTEXITCODE -ne 0) {
+    throw "Existing .venv is incompatible. Remove it and rerun setup_windows.ps1."
 }
 & $VenvPython -m pip install --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "Failed to upgrade pip" }

@@ -31,6 +31,12 @@ a different course without editing code:
 .\scripts\run_viewer_windows.ps1 -Track configs/tracks/mixed_easy.yaml -Vx 1.0
 ```
 
+The browser viewer resets and aligns the Go2 when its first client connects,
+uses a close 1.25 m chase view, reports commanded versus actual velocity, and
+shows a robot-mounted 320×180 depth camera. The depth image is visualization
+only and is not added to the policy observation. Use `--no-depth-camera` on the
+Python viewer command if offscreen rendering is unavailable.
+
 The repository may be located in a path containing Chinese characters. MuJoCo's
 C-level XML loader cannot open such paths directly on Windows, so the benchmark
 automatically mirrors the complete robot model into an ASCII-only cache below

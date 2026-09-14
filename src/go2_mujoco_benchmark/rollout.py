@@ -81,12 +81,14 @@ def run_policy_rollout(
     runtime = MujocoRuntime.from_model(policy_dir, model, mujoco_module=mujoco)
     runtime.set_command(command)
     start_patch = track.patches[0]
-    runtime.data.qpos[0] = start_patch.start_x + min(
+    start_x = start_patch.start_x + min(
         0.75,
         (start_patch.end_x - start_patch.start_x) / 2.0,
     )
-    runtime.data.qpos[1] = 0.0
-    mujoco.mj_forward(model, runtime.data)
+    spawn = runtime.place_base_above_surface(
+        (start_x, 0.0),
+        surface_z=start_patch.start_z,
+    )
 
     gyro_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, config.imu_gyro_sensor)
     gyro_address = int(model.sensor_adr[gyro_id])
@@ -161,6 +163,7 @@ def run_policy_rollout(
         "physics_steps": completed_steps * runtime.sim_steps_per_control,
         "sim_time": float(runtime.data.time),
         "command": list(command),
+        "spawn": spawn,
         "velocity_tracking_rmse": tracking_rmse.tolist(),
         "initial_position": initial_position.tolist(),
         "final_position": final_position.tolist(),

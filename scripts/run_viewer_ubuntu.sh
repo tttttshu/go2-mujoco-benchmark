@@ -4,6 +4,11 @@ set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root"
 
+if [[ ! -x .venv/bin/python ]]; then
+  echo "Missing .venv. Run scripts/setup_ubuntu.sh first." >&2
+  exit 1
+fi
+
 exec .venv/bin/python -m go2_mujoco_benchmark.viewer \
   --policy-dir "${POLICY_DIR:-policies/him_policy}" \
   --robot-scene third_party/unitree_go2/scene.xml \

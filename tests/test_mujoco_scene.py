@@ -16,7 +16,7 @@ def test_generated_track_replaces_floor_and_compiles(tmp_path: Path):
         """<mujoco model="fixture">
   <worldbody>
     <geom name="floor" type="plane" size="0 0 0.05"/>
-    <body name="ball" pos="0 0 1">
+    <body name="base" pos="0 0 1">
       <freejoint/>
       <geom type="sphere" size="0.05"/>
       <site name="imu"/>
@@ -45,6 +45,7 @@ def test_generated_track_replaces_floor_and_compiles(tmp_path: Path):
     quat_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, "imu_quat")
     assert model.sensor_dim[gyro_id] == 3
     assert model.sensor_dim[quat_id] == 4
+    assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, "go2_depth_camera") >= 0
     for patch in track.patches:
         for geom in patch.geoms:
             assert mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, geom.name) >= 0

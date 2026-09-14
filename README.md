@@ -18,7 +18,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\run_viewer_windows.ps1
 ```
 
-Ubuntu with Python 3.11 installed:
+Ubuntu with Python 3.11 or 3.12 installed:
 
 ```bash
 bash scripts/setup_ubuntu.sh
@@ -74,27 +74,32 @@ fixtures strictly for interface acceptance. A synthetic result is labelled
 `evaluation_scope: interface_only` and must never be reported as trained-policy
 performance.
 
-Start the real-time browser viewer on the remote host:
+Start the real-time browser viewer locally:
 
 ```bash
 python -m go2_mujoco_benchmark.viewer \
   --track configs/tracks/flat_20m.yaml \
   --backend mjviser --host 127.0.0.1 --port 8080 \
   --vx 1.0 --vy 0 --wz 0 \
-  --camera-distance 2.2 --camera-fov 45
+  --camera-distance 1.25 --camera-fov 38
 ```
 
-Forward the loopback-only server with:
+For a remote Ubuntu host, keep the service bound to loopback and forward it
+from the client computer with:
 
 ```bash
-ssh -N -L 18080:127.0.0.1:8080 rtx5090-proxy
+ssh -N -L 18080:127.0.0.1:8080 USER@HOST
 ```
 
 Then open `http://127.0.0.1:18080`. The browser starts with a close view of the
 robot and follows its base while preserving interactive orbit and zoom. Use the
 `Follow robot` checkbox to freeze the camera or `Reset camera` to restore the
 default view. `--camera-distance`, `--camera-azimuth`, `--camera-elevation`, and
-`--camera-fov` tune the initial framing. Because generated courses are finite,
+`--camera-fov` tune the initial framing. The first browser connection resets and
+aligns the robot at the course start, so loading time cannot consume part of an
+episode. The side panel includes target/actual motion telemetry, a stall warning,
+`Reset & align`, and a 320×180 forward-facing depth image at 5 FPS. Pass
+`--no-depth-camera` to disable offscreen depth rendering. Because generated courses are finite,
 the viewer automatically resets the simulation when the robot falls or leaves
 the track; pass `--no-auto-reset` when deliberate off-track inspection is needed.
 Track YAML files can add physical side walls with `boundary_walls.enabled`,
@@ -106,23 +111,20 @@ The `native` backend opens a GLFW window and can be wrapped by termview. The
 remote machine must have Rust/cargo and Xvfb before termview's private-display
 mode can run.
 
-## Verified platforms
+## Supported platforms
 
-Windows 11 with Python 3.12 passes all 25 tests, including release-archive
-validation, plus the full environment doctor and real ONNX policy rollout.
-Ubuntu with Python 3.11 passed the previous 24-test core suite, full doctor, and
-the same rollout before the release-packaging test was added. The final 25-test
-Ubuntu rerun is pending reconnection of the 5090 host. On Ubuntu 5090:
+The supported matrix is Windows 10/11 and Ubuntu 22.04/24.04 on x86-64 with
+Python 3.11 or 3.12. GitHub Actions runs the same test suite on both operating
+systems and both Python versions. A GPU is optional; policy inference defaults
+to ONNX Runtime CPU. Validate any checkout with:
 
 ```bash
-cd /home/hujunyi/work/go2_mujoco_benchmark
-bash scripts/setup_ubuntu.sh
-.venv/bin/python -m pytest -q
-.venv/bin/python -m go2_mujoco_benchmark.doctor
+python -m pytest -q
+python -m go2_mujoco_benchmark.doctor
 ```
 
 See `docs/CROSS_PLATFORM.md` for local Windows and Ubuntu commands, and
-`docs/REMOTE_5090_VALIDATION.md` for the private SSH-tunnel workflow.
+`docs/REMOTE_UBUNTU.md` for a server-neutral SSH-tunnel workflow.
 
 ## Build delivery archives
 

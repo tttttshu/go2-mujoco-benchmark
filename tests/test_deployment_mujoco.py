@@ -24,9 +24,18 @@ def _model():
         for i in range(12)
     )
     actuators = "".join(f'<motor name="j{i}" joint="j{i}_joint"/>' for i in range(12))
+    feet = "".join(
+        f'<geom name="{name}" type="sphere" pos="{x} {y} -0.2" size="0.02" mass="0.01"/>'
+        for name, x, y in (
+            ("FL", 0.08, 0.04),
+            ("FR", 0.08, -0.04),
+            ("RL", -0.08, 0.04),
+            ("RR", -0.08, -0.04),
+        )
+    )
     return mujoco.MjModel.from_xml_string(
         f"""<mujoco><option timestep="0.005"/><worldbody><body name="base" pos="0 0 0.5">
-        <freejoint/><geom type="box" size="0.1 0.05 0.03" mass="1"/><site name="imu"/>{bodies}
+        <freejoint/><geom type="box" size="0.1 0.05 0.03" mass="1"/><site name="imu"/>{feet}{bodies}
         </body></worldbody><actuator>{actuators}</actuator><sensor><gyro name="imu_gyro" site="imu"/>
         <framequat name="imu_quat" objtype="site" objname="imu"/></sensor></mujoco>"""
     )
@@ -63,3 +72,22 @@ def test_one_control_period_is_four_physics_steps() -> None:
     assert data.time == pytest.approx(0.02)
     np.testing.assert_allclose(policy.calls[0][0, 6:9], [0.4, 0.0, 0.2])
     assert runtime.max_torque == pytest.approx(2.0)
+
+
+def test_spawn_height_is_calibrated_from_foot_collision_geometry() -> None:
+    model = _model()
+    data = mujoco.MjData(model)
+    runtime = MujocoRuntime(model, data, _config(), _ConstantPolicy(), mujoco)
+    data.qpos[2] = 0.1
+
+    placement = runtime.place_base_above_surface((0.75, -0.1), surface_z=0.2, foot_clearance=0.015)
+
+    assert data.qpos[0] == pytest.approx(0.75)
+    assert data.qpos[1] == pytest.approx(-0.1)
+    np.testing.assert_allclose(data.qpos[3:7], [1.0, 0.0, 0.0, 0.0])
+    assert placement["height_correction"] > 0.0
+    foot_bottoms = []
+    for name in runtime.DEFAULT_FOOT_GEOMS:
+        geom_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name)
+        foot_bottoms.append(data.geom_xpos[geom_id, 2] - model.geom_size[geom_id, 0])
+    assert min(foot_bottoms) == pytest.approx(0.215)

@@ -12,6 +12,8 @@ from .runtime import DeploymentConfig, ObservationHistory, OnnxPolicy, build_pro
 
 
 class MujocoRuntime:
+    DEFAULT_FOOT_GEOMS = ("FL", "FR", "RL", "RR")
+
     def __init__(self, model, data, config: DeploymentConfig, policy: OnnxPolicy, mujoco_module: ModuleType) -> None:
         config.validate()
         self.model = model
@@ -101,6 +103,52 @@ class MujocoRuntime:
     def get_command(self) -> np.ndarray:
         with self._lock:
             return self.command.copy()
+
+    def place_base_above_surface(
+        self,
+        position_xy: tuple[float, float],
+        *,
+        surface_z: float,
+        foot_clearance: float = 0.015,
+        yaw_rad: float = 0.0,
+        foot_geom_names: tuple[str, ...] = DEFAULT_FOOT_GEOMS,
+    ) -> dict[str, float]:
+        """Place the base from the actual lowest foot collision sphere."""
+        if not np.isfinite(surface_z):
+            raise ValueError("surface_z must be finite")
+        if not np.isfinite(foot_clearance) or foot_clearance < 0.0:
+            raise ValueError("foot_clearance must be finite and non-negative")
+        if not np.isfinite(yaw_rad):
+            raise ValueError("yaw_rad must be finite")
+        with self._lock:
+            self.data.qpos[0:2] = np.asarray(position_xy, dtype=np.float64)
+            half_yaw = float(yaw_rad) / 2.0
+            self.data.qpos[3:7] = (np.cos(half_yaw), 0.0, 0.0, np.sin(half_yaw))
+            self.mujoco.mj_forward(self.model, self.data)
+            foot_bottoms = []
+            missing = []
+            for name in foot_geom_names:
+                geom_id = self.mujoco.mj_name2id(self.model, self.mujoco.mjtObj.mjOBJ_GEOM, name)
+                if geom_id < 0:
+                    missing.append(name)
+                    continue
+                if int(self.model.geom_type[geom_id]) != int(self.mujoco.mjtGeom.mjGEOM_SPHERE):
+                    raise ValueError(f"Foot geom {name!r} must be a sphere for spawn calibration")
+                foot_bottoms.append(float(self.data.geom_xpos[geom_id, 2] - self.model.geom_size[geom_id, 0]))
+            if missing:
+                raise KeyError(f"MuJoCo foot geoms not found: {', '.join(missing)}")
+            if not foot_bottoms:
+                raise ValueError("At least one foot geom is required for spawn calibration")
+            minimum_before = min(foot_bottoms)
+            height_correction = float(surface_z + foot_clearance - minimum_before)
+            self.data.qpos[2] += height_correction
+            self.data.qvel[:6] = 0.0
+            self.mujoco.mj_forward(self.model, self.data)
+            return {
+                "base_height": float(self.data.qpos[2]),
+                "minimum_foot_height": float(surface_z + foot_clearance),
+                "height_correction": height_correction,
+            }
 
     def reset(self, model=None, data=None) -> None:
         with self._lock:

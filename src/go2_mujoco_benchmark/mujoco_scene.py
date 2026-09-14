@@ -19,6 +19,7 @@ TERRAIN_COLORS = {
     "stairs_down": (0.52, 0.40, 0.28, 1.0),
 }
 BOUNDARY_COLOR = (0.20, 0.24, 0.30, 1.0)
+DEPTH_CAMERA_NAME = "go2_depth_camera"
 
 
 def _mujoco_readable_scene_path(
@@ -69,6 +70,8 @@ def compile_mujoco_track(
     imu_site: str = "imu",
     gyro_sensor: str = "imu_gyro",
     quaternion_sensor: str = "imu_quat",
+    depth_camera_name: str = DEPTH_CAMERA_NAME,
+    base_body_name: str = "base",
     friction: tuple[float, float, float] = (1.0, 0.005, 0.0001),
     mujoco_module: ModuleType | None = None,
 ):
@@ -112,6 +115,15 @@ def compile_mujoco_track(
             type=mujoco.mjtSensor.mjSENS_FRAMEQUAT,
             objtype=mujoco.mjtObj.mjOBJ_SITE,
             objname=imu_site,
+        )
+
+    base_body = spec.body(base_body_name)
+    if depth_camera_name and base_body is not None and spec.camera(depth_camera_name) is None:
+        base_body.add_camera(
+            name=depth_camera_name,
+            pos=(0.28, 0.0, 0.055),
+            xyaxes=(0.0, -1.0, 0.0, 0.0, 0.0, 1.0),
+            fovy=70.0,
         )
 
     for patch in track.patches:
