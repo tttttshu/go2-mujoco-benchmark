@@ -122,7 +122,7 @@ def test_maze_difficulty_controls_geometry_and_exit_is_exactly_1_2m():
                     "width": 3.0,
                     "difficulty_level": level,
                     "boundary_walls": {"enabled": True},
-                    "segments": [{"type": "maze", "length": 7.0}],
+                    "segments": [{"type": "maze", "length": 5.0}],
                 }
             )
         )
@@ -133,6 +133,7 @@ def test_maze_difficulty_controls_geometry_and_exit_is_exactly_1_2m():
     hard_maze = hard.patches[1]
 
     assert hard_maze.parameters["wall_thickness"] > easy_maze.parameters["wall_thickness"]
+    assert hard_maze.parameters["wall_length"] > easy_maze.parameters["wall_length"]
     assert hard_maze.parameters["corridor_width"] < easy_maze.parameters["corridor_width"]
     assert hard_maze.parameters["wall_count"] > easy_maze.parameters["wall_count"]
     assert hard_maze.parameters["exit_width"] == pytest.approx(1.2)
@@ -143,7 +144,11 @@ def test_maze_difficulty_controls_geometry_and_exit_is_exactly_1_2m():
         for geom in exit_walls
     )
     assert inner_edges == pytest.approx([-0.6, 0.6])
-    assert all(not geom.name.startswith("boundary_001") for geom in hard.boundary_geoms)
+    internal_walls = [geom for geom in hard_maze.obstacle_geoms if "maze_inner" in geom.name]
+    assert len(internal_walls) == hard_maze.parameters["wall_count"]
+    assert len(hard_maze.obstacle_geoms) == hard_maze.parameters["wall_count"] + 2
+    assert all(abs(geom.center[1]) + geom.half_size[1] < hard.width / 2.0 for geom in internal_walls)
+    assert any(geom.name.startswith("boundary_001") for geom in hard.boundary_geoms)
 
 
 def test_maze_overrides_and_arbitrary_segment_order_are_preserved():
@@ -154,7 +159,7 @@ def test_maze_overrides_and_arbitrary_segment_order_are_preserved():
             "width": 3.2,
             "difficulty_level": 4,
             "segments": [
-                {"type": "maze", "length": 5.0, "wall_thickness": 0.11, "corridor_width": 1.4, "wall_count": 3},
+                {"type": "maze", "length": 5.0, "wall_thickness": 0.11, "wall_length": 0.65, "wall_count": 9},
                 {"type": "flat", "length": 1.0},
                 {"type": "maze", "length": 6.0, "difficulty_level": 8},
             ],
@@ -164,8 +169,8 @@ def test_maze_overrides_and_arbitrary_segment_order_are_preserved():
 
     assert [patch.kind for patch in track.patches] == ["flat", "maze", "flat", "maze", "flat"]
     assert track.patches[1].parameters["wall_thickness"] == pytest.approx(0.11)
-    assert track.patches[1].parameters["corridor_width"] == pytest.approx(1.4)
-    assert track.patches[1].parameters["wall_count"] == 3
+    assert track.patches[1].parameters["wall_length"] == pytest.approx(0.65)
+    assert track.patches[1].parameters["wall_count"] == 9
     assert track.patches[3].difficulty_level == 8
     for left, right in zip(track.patches, track.patches[1:]):
         assert (left.end_x, left.end_z) == pytest.approx((right.start_x, right.start_z))

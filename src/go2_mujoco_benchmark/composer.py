@@ -41,8 +41,6 @@ class TrackComposer:
         if spec.boundary_walls.enabled:
             wall = spec.boundary_walls
             for patch in patches:
-                if patch.kind == "maze":
-                    continue
                 for geom_index, geom in enumerate(patch.geoms):
                     w, x, y, z = geom.quaternion_wxyz
                     local_up = (

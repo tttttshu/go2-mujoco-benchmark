@@ -20,7 +20,7 @@ segments:
   - type: slope_down
     length: 2.0
   - type: maze
-    length: 7.0
+    length: 5.0
   - type: flat
     length: 1.0
   - type: stairs_up

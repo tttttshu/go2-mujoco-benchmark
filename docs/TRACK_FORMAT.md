@@ -51,8 +51,10 @@ mapped to the nearest v2 level. New files should use schema v2.
 
 ## Maze terrain
 
-The maze is a chainable, collision-enabled slalom course. It contains continuous
-side walls, alternating transverse walls, and a terminal barrier. The terminal
+The maze is a chainable, collision-enabled obstacle field. Its short internal
+walls are free-standing and distributed across the road center and both sides;
+they do not extend from or depend on the course boundary walls. Course boundary
+walls remain independently controlled by `boundary_walls.enabled`. The terminal
 barrier always has exactly one opening centered at `y = 0`, with a fixed width
 of 1.2 m; that exit width cannot be overridden.
 
@@ -61,22 +63,24 @@ Without explicit values, levels 1–9 control all three maze dimensions:
 | Parameter | Level 1 | Level 9 | Effect |
 | --- | ---: | ---: | --- |
 | `wall_thickness` | 0.06 m | 0.18 m | thicker is harder |
-| `corridor_width` | 1.80 m | 0.90 m | narrower is harder |
-| `wall_count` | 2 | 8 | more walls is harder |
+| `wall_length` | 0.45 m | 0.80 m | longer is harder, but remains free-standing |
+| `wall_count` | 6 | 18 | more walls is harder |
 
 Each dimension may instead be fixed explicitly for controlled experiments:
 
 ```yaml
 - type: maze
-  length: 8.0
+  length: 5.0
   wall_thickness: 0.12
-  corridor_width: 1.35
-  wall_count: 5
+  wall_length: 0.65
+  wall_count: 12
 ```
 
-`corridor_width` must be smaller than the track `width`, and the segment must be
-long enough to place the requested number and thickness of walls. The compiler
-rejects impossible geometry rather than emitting overlapping walls.
+`wall_length` must be smaller than the track `width`, and the segment must be
+long enough to place the requested number and thickness of walls. For backward
+compatibility, `corridor_width` may be supplied instead; it derives a centered
+wall length as `track width - 2 × corridor width`. The compiler rejects
+impossible geometry rather than emitting overlapping walls.
 
 ## Supported segment fields
 
@@ -84,8 +88,8 @@ rejects impossible geometry rather than emitting overlapping walls.
 - `slope_up`, `slope_down`: required `length`; optional non-negative `slope`.
 - `stairs_up`, `stairs_down`: required positive integer `steps`; optional
   `step_height` and `step_depth`.
-- `maze`: required `length`; optional `wall_thickness`, `corridor_width`, and
-  positive integer `wall_count`.
+- `maze`: required `length`; optional `wall_thickness`, `wall_length`,
+  `corridor_width`, and positive integer `wall_count`.
 
 All segment types accept an optional `difficulty_level`. Explicit geometric
 values take precedence over difficulty-derived defaults.

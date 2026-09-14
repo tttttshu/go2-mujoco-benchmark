@@ -34,7 +34,7 @@ def test_generated_track_replaces_floor_and_compiles(tmp_path: Path):
             "boundary_walls": {"enabled": True, "height": 0.4, "thickness": 0.08},
             "segments": [
                 {"type": "slope_up", "length": 1.0, "slope": 0.1},
-                {"type": "maze", "length": 3.0, "wall_count": 2, "corridor_width": 1.3},
+                {"type": "maze", "length": 3.0, "wall_count": 6, "wall_length": 0.5},
             ],
         }
     )

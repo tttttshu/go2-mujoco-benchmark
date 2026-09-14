@@ -91,6 +91,7 @@ class SegmentSpec:
     step_height: float | None = None
     step_depth: float = 0.3
     wall_thickness: float | None = None
+    wall_length: float | None = None
     corridor_width: float | None = None
     wall_count: int | None = None
 
@@ -106,6 +107,7 @@ class SegmentSpec:
             "step_height",
             "step_depth",
             "wall_thickness",
+            "wall_length",
             "corridor_width",
             "wall_count",
         }
@@ -139,6 +141,11 @@ class SegmentSpec:
             if "wall_thickness" in payload
             else None
         )
+        wall_length = (
+            _positive_float(payload["wall_length"], "segment.wall_length")
+            if "wall_length" in payload
+            else None
+        )
         corridor_width = (
             _positive_float(payload["corridor_width"], "segment.corridor_width")
             if "corridor_width" in payload
@@ -166,8 +173,11 @@ class SegmentSpec:
             raise ValueError("segment.slope must be non-negative")
         if (step_height is not None or "step_depth" in payload) and kind not in {"stairs_up", "stairs_down"}:
             raise ValueError("step_height and step_depth are valid only for stair terrain")
-        if any(value is not None for value in (wall_thickness, corridor_width, wall_count)) and kind != "maze":
-            raise ValueError("wall_thickness, corridor_width and wall_count are valid only for maze terrain")
+        maze_values = (wall_thickness, wall_length, corridor_width, wall_count)
+        if any(value is not None for value in maze_values) and kind != "maze":
+            raise ValueError(
+                "wall_thickness, wall_length, corridor_width and wall_count are valid only for maze terrain"
+            )
 
         return cls(
             kind=kind,
@@ -178,6 +188,7 @@ class SegmentSpec:
             step_height=step_height,
             step_depth=step_depth,
             wall_thickness=wall_thickness,
+            wall_length=wall_length,
             corridor_width=corridor_width,
             wall_count=wall_count,
         )

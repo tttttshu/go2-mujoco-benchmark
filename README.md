@@ -110,8 +110,8 @@ a wide lane and low training-range slopes and stairs before harder sweeps.
 `segments` in a track YAML are compiled in the exact listed order, so terrain
 types can be selected, repeated, and rearranged freely. `difficulty_level` is
 an integer from 1 (easiest) to 9 (hardest), globally or on an individual
-segment. Maze difficulty increases wall thickness and wall count while reducing
-the alternating corridor width. Its final barrier always leaves exactly one
+segment. Maze difficulty increases the thickness, length, and number of short
+free-standing walls distributed across the road. Its final barrier always leaves exactly one
 centered 1.2 m exit. See [docs/TRACK_FORMAT.md](docs/TRACK_FORMAT.md) and
 `configs/tracks/mixed_maze.yaml` for a complete example.
 

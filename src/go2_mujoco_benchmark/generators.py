@@ -153,18 +153,25 @@ def build_maze(
     global_difficulty_level: int,
     seed: int,
 ) -> TerrainPatch:
-    """Build a deterministic slalom maze that remains chainable with other terrain."""
+    """Build a deterministic field of short, free-standing maze walls."""
 
     assert segment.length is not None
     difficulty_level, difficulty = _difficulty(segment, global_difficulty_level)
     wall_thickness = segment.wall_thickness or (0.06 + 0.12 * difficulty)
-    corridor_width = segment.corridor_width or (1.8 - 0.9 * difficulty)
-    wall_count = segment.wall_count or (2 + round(6 * difficulty))
+    default_wall_length = 0.45 + 0.35 * difficulty
+    if segment.wall_length is not None:
+        wall_length = segment.wall_length
+    elif segment.corridor_width is not None:
+        wall_length = width - 2.0 * segment.corridor_width
+    else:
+        wall_length = default_wall_length
+    wall_count = segment.wall_count or (6 + round(12 * difficulty))
 
     if width <= MAZE_EXIT_WIDTH:
         raise ValueError(f"Maze track width must exceed the fixed {MAZE_EXIT_WIDTH:.1f} m exit width")
-    if corridor_width >= width:
-        raise ValueError("Maze corridor_width must be smaller than the track width")
+    if wall_length <= 0.0 or wall_length >= width:
+        raise ValueError("Maze wall_length must be positive and smaller than the track width")
+    corridor_width = (width - wall_length) / 2.0
     wall_spacing = segment.length / (wall_count + 1)
     if wall_thickness >= wall_spacing:
         raise ValueError("Maze walls are too thick or numerous for the segment length")
@@ -174,32 +181,13 @@ def build_maze(
         center=(start_x + segment.length / 2.0, 0.0, start_z - FOUNDATION_DEPTH / 2.0),
         half_size=(segment.length / 2.0, width / 2.0, FOUNDATION_DEPTH / 2.0),
     )
-    obstacles = [
-        BoxGeom(
-            name=f"obstacle_{index:03d}_maze_side_left",
-            center=(
-                start_x + segment.length / 2.0,
-                width / 2.0 + wall_thickness / 2.0,
-                start_z + MAZE_WALL_HEIGHT / 2.0,
-            ),
-            half_size=(segment.length / 2.0, wall_thickness / 2.0, MAZE_WALL_HEIGHT / 2.0),
-        ),
-        BoxGeom(
-            name=f"obstacle_{index:03d}_maze_side_right",
-            center=(
-                start_x + segment.length / 2.0,
-                -width / 2.0 - wall_thickness / 2.0,
-                start_z + MAZE_WALL_HEIGHT / 2.0,
-            ),
-            half_size=(segment.length / 2.0, wall_thickness / 2.0, MAZE_WALL_HEIGHT / 2.0),
-        ),
-    ]
-
-    blocked_width = width - corridor_width
-    first_gap_on_left = (seed + index) % 2 == 0
+    obstacles = []
+    max_offset = max(0.0, width / 2.0 - wall_length / 2.0 - 0.25)
+    lateral_offset = min(0.55, max_offset)
+    lanes = (0.0, lateral_offset, -lateral_offset, lateral_offset / 2.0, -lateral_offset / 2.0)
+    lane_shift = (seed + index) % len(lanes)
     for wall_index in range(wall_count):
-        gap_on_left = first_gap_on_left if wall_index % 2 == 0 else not first_gap_on_left
-        center_y = -corridor_width / 2.0 if gap_on_left else corridor_width / 2.0
+        center_y = lanes[(wall_index + lane_shift) % len(lanes)]
         obstacles.append(
             BoxGeom(
                 name=f"obstacle_{index:03d}_maze_inner_{wall_index:03d}",
@@ -208,7 +196,7 @@ def build_maze(
                     center_y,
                     start_z + MAZE_WALL_HEIGHT / 2.0,
                 ),
-                half_size=(wall_thickness / 2.0, blocked_width / 2.0, MAZE_WALL_HEIGHT / 2.0),
+                half_size=(wall_thickness / 2.0, wall_length / 2.0, MAZE_WALL_HEIGHT / 2.0),
             )
         )
 
@@ -241,6 +229,7 @@ def build_maze(
         parameters={
             "length": segment.length,
             "wall_thickness": wall_thickness,
+            "wall_length": wall_length,
             "corridor_width": corridor_width,
             "wall_count": wall_count,
             "exit_width": MAZE_EXIT_WIDTH,
