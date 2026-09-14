@@ -106,6 +106,9 @@ Track YAML files can add physical side walls with `boundary_walls.enabled`,
 `height`, and `thickness`. The flat 20 m validation course enables 0.45 m walls.
 `configs/tracks/mixed_easy.yaml` is the first visual acceptance course: it uses
 a wide lane and low training-range slopes and stairs before harder sweeps.
+`configs/tracks/maze_short.yaml` places the short-wall maze immediately after
+the spawn pad for visual inspection; `mixed_maze.yaml` demonstrates inserting
+the same terrain into a longer ordered course.
 
 `segments` in a track YAML are compiled in the exact listed order, so terrain
 types can be selected, repeated, and rearranged freely. `difficulty_level` is

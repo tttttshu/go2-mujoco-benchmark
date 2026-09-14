@@ -1,0 +1,16 @@
+schema_version: 2
+name: maze_short_preview
+seed: 42
+width: 3.0
+difficulty_level: 9
+difficulty_profile: train
+start_flat_length: 1.5
+finish_flat_length: 2.0
+boundary_walls:
+  enabled: true
+  height: 0.55
+  thickness: 0.08
+
+segments:
+  - type: maze
+    length: 5.0
