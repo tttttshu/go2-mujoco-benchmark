@@ -1,0 +1,16 @@
+schema_version: 1
+name: stairs_stress_course
+seed: 42
+width: 2.0
+global_difficulty: 0.5
+difficulty_profile: stress
+start_flat_length: 2.0
+finish_flat_length: 2.0
+
+segments:
+  - type: stairs_up
+    steps: 6
+  - type: flat
+    length: 1.0
+  - type: stairs_down
+    steps: 6

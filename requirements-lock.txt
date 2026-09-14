@@ -1,0 +1,10 @@
+# Versions accepted together on Python 3.11/3.12. Install on Windows or Ubuntu.
+setuptools==80.9.0
+wheel==0.45.1
+numpy==2.2.6
+PyYAML==6.0.3
+mujoco==3.8.1
+onnxruntime==1.22.1
+mjviser==0.0.14
+viser==1.1.0
+pytest==9.1.1

@@ -1,0 +1,2 @@
+# Backward-compatible entry point; the cross-platform lock is canonical.
+-r requirements-lock.txt

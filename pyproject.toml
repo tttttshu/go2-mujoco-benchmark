@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "go2-mujoco-benchmark"
+version = "0.1.0"
+description = "Composable MuJoCo terrain benchmark for exported Unitree Go2 locomotion policies"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "numpy>=1.24,<3",
+  "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+runtime = ["mujoco>=3.2,<4", "onnxruntime>=1.20,<2"]
+viewer = ["mjviser==0.0.14"]
+
+[project.scripts]
+go2-track = "go2_mujoco_benchmark.cli:main"
+go2-physics-smoke = "go2_mujoco_benchmark.physics_smoke:main"
+go2-policy-rollout = "go2_mujoco_benchmark.rollout:main"
+go2-viewer = "go2_mujoco_benchmark.viewer:main"
+go2-doctor = "go2_mujoco_benchmark.doctor:main"
+go2-package-release = "go2_mujoco_benchmark.release:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
